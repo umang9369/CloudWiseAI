@@ -27,6 +27,10 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/ingestion', ingestionRoutes);
 app.use('/api/settings', settingsRoutes);
 
+app.get('/', (req, res) => {
+    res.send('CloudWise AI API is running. Access endpoints under /api/*');
+});
+
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'CloudWise AI Backend is running' });
 });
