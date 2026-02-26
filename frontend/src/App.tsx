@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import Sidebar from './components/Layout/Sidebar';
 import TopBar from './components/Layout/TopBar';
 
@@ -28,8 +28,11 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
 function LandingHero() {
   return (
-    <div className="min-h-screen bg-bg-primary text-text-primary flex flex-col items-center justify-center">
+    <div className="min-h-screen bg-bg-primary text-text-primary flex flex-col items-center justify-center gap-8">
       <h1 className="text-hero font-display font-bold uppercase text-white-glyph text-center">Cloud Costs,<br />Decoded.</h1>
+      <Link to="/app/overview" className="border border-border hover:border-text-primary px-8 py-3 text-label font-bold transition-colors">
+        ENTER PLATFORM
+      </Link>
     </div>
   );
 }
