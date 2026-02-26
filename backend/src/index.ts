@@ -3,6 +3,12 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import dashboardRoutes from './routes/dashboard';
 import anomaliesRoutes from './routes/anomalies';
+import recommendationsRoutes from './routes/recommendations';
+import simulatorRoutes from './routes/simulator';
+import queryRoutes from './routes/query';
+import reportsRoutes from './routes/reports';
+import ingestionRoutes from './routes/ingestion';
+import settingsRoutes from './routes/settings';
 
 dotenv.config();
 
@@ -14,6 +20,12 @@ app.use(express.json());
 
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/anomalies', anomaliesRoutes);
+app.use('/api/recommendations', recommendationsRoutes);
+app.use('/api/simulator', simulatorRoutes);
+app.use('/api/query', queryRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/ingestion', ingestionRoutes);
+app.use('/api/settings', settingsRoutes);
 
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'CloudWise AI Backend is running' });
