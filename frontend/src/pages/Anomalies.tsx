@@ -58,7 +58,7 @@ export default function Anomalies() {
                                 <div>
                                     <div className="flex items-center gap-3 mb-2">
                                         <h3 className="text-body font-bold text-text-primary">{anomaly.resource}</h3>
-                                        <AlertBadge severity={anomaly.severity as any} label={anomaly.service} />
+                                        <AlertBadge severity={anomaly.severity as 'CRITICAL' | 'WARNING' | 'INFO' | 'SUCCESS'} label={anomaly.service} />
                                     </div>
                                     <p className="text-micro text-text-muted mb-4">{anomaly.explanation}</p>
                                 </div>

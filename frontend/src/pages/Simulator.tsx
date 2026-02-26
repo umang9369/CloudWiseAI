@@ -53,7 +53,7 @@ export default function Simulator() {
                             <label className="block text-micro text-text-muted mb-2">TARGET ARCHITECTURE MIGRATION</label>
                             <select
                                 value={tierType}
-                                onChange={(e) => setTierType(e.target.value as any)}
+                                onChange={(e) => setTierType(e.target.value as 'compute' | 'memory')}
                                 className="w-full bg-bg-primary border border-border p-3 text-text-primary focus:outline-none focus:border-text-primary transition-colors appearance-none"
                             >
                                 <option value="compute">Graviton (ARM) Compute</option>
