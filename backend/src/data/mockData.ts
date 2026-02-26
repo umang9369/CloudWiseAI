@@ -40,3 +40,39 @@ export const agentLogs = [
     { id: 3, type: 'OPTIMIZATION', time: '11:00 AM', action: 'Generated recommendations', result: '$4,200 potential savings identified' },
     { id: 4, type: 'REPORTING', time: '11:05 AM', action: 'Drafted Weekly Summary', result: 'Ready for review' }
 ];
+
+export let recommendations = [
+    { id: 'REC-001', title: 'Right-size EC2 Instances', description: 'Downgrade 5 underutilized m5.4xlarge instances to m5.2xlarge in us-east-1.', potentialSavings: '$1,200/mo', difficulty: 'Easy', status: 'PENDING' },
+    { id: 'REC-002', title: 'Delete Unattached EBS Volumes', description: 'Found 12 unattached gp3 volumes older than 30 days.', potentialSavings: '$450/mo', difficulty: 'Easy', status: 'PENDING' },
+    { id: 'REC-003', title: 'Migrate to Graviton Processors', description: 'Switch 20 container workloads from x86 to ARM infrastructure.', potentialSavings: '$3,800/mo', difficulty: 'Hard', status: 'PENDING' }
+];
+
+export let chatHistory = [
+    { id: 1, role: 'ai', text: 'Hello! I am CloudWise AI. How can I help you analyze your cloud costs today?', time: new Date().toISOString() }
+];
+
+export const reports = [
+    { id: 'REP-102', title: 'Weekly Cost Summary - W4', date: '2024-01-28', type: 'PDF', generatedBy: 'Reporting Agent' },
+    { id: 'REP-101', title: 'Weekly Cost Summary - W3', date: '2024-01-21', type: 'PDF', generatedBy: 'Reporting Agent' },
+    { id: 'REP-100', title: 'Weekly Cost Summary - W2', date: '2024-01-14', type: 'CSV', generatedBy: 'Reporting Agent' }
+];
+
+export const ingestionLogs = [
+    { id: 1, time: '06:00:12 AM', source: 'AWS', message: 'Cost and Usage Report fully ingested. (23.1mb)', status: 'success' },
+    { id: 2, time: '05:45:00 AM', source: 'GCP', message: 'Billing Export sync completed successfully.', status: 'success' },
+    { id: 3, time: '05:30:45 AM', source: 'Azure', message: 'Cost Management API sync completed successfully.', status: 'success' },
+    { id: 4, time: '04:15:00 AM', source: 'AWS', message: 'CloudTrail log ingestion delayed. Retrying...', status: 'warning' }
+];
+
+export let settings = {
+    providers: [
+        { id: 'aws', name: 'Amazon Web Services', status: 'CONNECTED' },
+        { id: 'azure', name: 'Microsoft Azure', status: 'CONNECTED' },
+        { id: 'gcp', name: 'Google Cloud Platform', status: 'CONFIGURE' }
+    ],
+    notifications: {
+        email: true,
+        slack: false,
+        criticalAnomaliesOnly: false
+    }
+};
