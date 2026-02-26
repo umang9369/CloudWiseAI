@@ -2,7 +2,7 @@ export const costTrends = [
     { date: 'Jan 01', aws: 1200, azure: 800, gcp: 400 },
     { date: 'Jan 05', aws: 1300, azure: 850, gcp: 420 },
     { date: 'Jan 10', aws: 1250, azure: 900, gcp: 450 },
-    { date: 'Jan 15', aws: 2500, azure: 880, gcp: 410 }, // Anomaly spike
+    { date: 'Jan 15', aws: 2500, azure: 880, gcp: 410 },
     { date: 'Jan 20', aws: 1400, azure: 920, gcp: 460 },
     { date: 'Jan 25', aws: 1350, azure: 950, gcp: 500 },
     { date: 'Jan 30', aws: 1380, azure: 910, gcp: 480 },

@@ -26,7 +26,6 @@ router.post('/ask', (req, res) => {
     const aiMsg = { id: Date.now() + 1, role: 'ai', text: aiResponse, time: new Date().toISOString() };
     chatHistory.push(aiMsg);
 
-    // Simulate thinking delay
     setTimeout(() => {
         res.json({ success: true, message: aiMsg });
     }, 1500);
