@@ -4,13 +4,13 @@ import TopBar from './components/Layout/TopBar';
 
 // Placeholder Pages
 import Dashboard from './pages/Dashboard';
-const Anomalies = () => <div className="p-10">ANOMALY_DETECTION</div>;
-const Recommendations = () => <div className="p-10">AI_RECOMMENDATIONS</div>;
-const Simulator = () => <div className="p-10">WHAT_IF_SIMULATOR</div>;
-const Query = () => <div className="p-10">NL_QUERY_INTERFACE</div>;
-const Reports = () => <div className="p-10">AI_REPORTS</div>;
-const Ingestion = () => <div className="p-10">DATA_INGESTION</div>;
-const Settings = () => <div className="p-10">SETTINGS_INTEGRATIONS</div>;
+import Anomalies from './pages/Anomalies';
+import Recommendations from './pages/Recommendations';
+import Simulator from './pages/Simulator';
+import Query from './pages/Query';
+import Reports from './pages/Reports';
+import Ingestion from './pages/Ingestion';
+import Settings from './pages/Settings';
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   return (
