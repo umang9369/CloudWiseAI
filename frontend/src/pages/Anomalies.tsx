@@ -19,7 +19,7 @@ export default function Anomalies() {
     const [loading, setLoading] = useState(true);
 
     const fetchAnomalies = () => {
-        fetch('http://localhost:3001/api/anomalies')
+        fetch('http://localhost:8000/api/anomalies')
             .then(res => res.json())
             .then(data => {
                 setAnomalies(data);
@@ -32,7 +32,7 @@ export default function Anomalies() {
     }, []);
 
     const processAcknowledge = (id: string) => {
-        fetch(`http://localhost:3001/api/anomalies/${id}/acknowledge`, { method: 'POST' })
+        fetch(`http://localhost:8000/api/anomalies/${id}/acknowledge`, { method: 'POST' })
             .then(res => res.json())
             .then(() => {
                 fetchAnomalies(); // Refresh the list

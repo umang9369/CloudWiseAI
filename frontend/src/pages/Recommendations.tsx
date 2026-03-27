@@ -15,7 +15,7 @@ export default function Recommendations() {
     const [loading, setLoading] = useState(true);
 
     const fetchRecommendations = () => {
-        fetch('http://localhost:3001/api/recommendations')
+        fetch('http://localhost:8000/api/recommendations')
             .then(res => res.json())
             .then(data => {
                 setRecommendations(data);
@@ -28,7 +28,7 @@ export default function Recommendations() {
     }, []);
 
     const processApply = (id: string) => {
-        fetch(`http://localhost:3001/api/recommendations/${id}/apply`, { method: 'POST' })
+        fetch(`http://localhost:8000/api/recommendations/${id}/apply`, { method: 'POST' })
             .then(res => res.json())
             .then(() => {
                 fetchRecommendations(); // Refresh list to show applied state

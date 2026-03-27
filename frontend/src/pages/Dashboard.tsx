@@ -46,10 +46,10 @@ export default function Dashboard() {
 
     useEffect(() => {
         Promise.all([
-            fetch('http://localhost:3001/api/dashboard/metrics').then(res => res.json()),
-            fetch('http://localhost:3001/api/dashboard/chart').then(res => res.json()),
-            fetch('http://localhost:3001/api/dashboard/top-drivers').then(res => res.json()),
-            fetch('http://localhost:3001/api/dashboard/agent-activity').then(res => res.json())
+            fetch('http://localhost:8000/api/dashboard/metrics').then(res => res.json()),
+            fetch('http://localhost:8000/api/dashboard/chart').then(res => res.json()),
+            fetch('http://localhost:8000/api/dashboard/top-drivers').then(res => res.json()),
+            fetch('http://localhost:8000/api/dashboard/agent-activity').then(res => res.json())
         ]).then(([metricsData, chart, drivers, logs]) => {
             setMetrics(metricsData);
             setChartData(chart);
