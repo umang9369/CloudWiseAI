@@ -13,3 +13,5 @@ pydantic-settings==2.5.2
 sentence-transformers==3.1.1
 numpy==1.26.4
 httpx==0.27.2
+pandas==2.2.3
+kaggle==1.6.17

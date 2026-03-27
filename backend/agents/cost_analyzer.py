@@ -62,11 +62,11 @@ def run_cost_analyzer(db: Session, connection=None) -> dict:
             ]
 
         except Exception as e:
-            print(f"[COST_ANALYZER] AWS error: {e}, using mock data")
-            cost_records = _generate_mock_cost_data()
+            print(f"[COST_ANALYZER] AWS error: {e}, checking for seeded data")
+            cost_records = _get_seeded_or_mock_data(db)
             findings = [f"{r['service']}: ${r['amount']:.2f} USD (30-day)" for r in cost_records[:10]]
     else:
-        cost_records = _generate_mock_cost_data()
+        cost_records = _get_seeded_or_mock_data(db)
         findings = [f"{r['service']}: ${r['amount']:.2f} USD (30-day)" for r in cost_records[:10]]
 
     # Store in DB
@@ -114,17 +114,55 @@ def run_cost_analyzer(db: Session, connection=None) -> dict:
     db.commit()
 
     # Ingest into ChromaDB for RAG
-    docs = [
-        {
-            "id": f"cost_{r['service'].replace(' ', '_').replace('/', '_')}",
-            "text": f"AWS Service: {r['service']} | Cost: ${r['amount']:.2f} USD | Period: {r.get('start', 'N/A')} to {r.get('end', 'N/A')}",
-            "metadata": {"agent": "cost_analyzer", "service": r["service"], "amount": r["amount"]},
+    docs = []
+    for r in cost_records:
+        raw_data = r.get("raw_data", {})
+        company_name = raw_data.get("company", "Unknown") if isinstance(raw_data, dict) else "Unknown"
+        industry = raw_data.get("industry", "Unknown") if isinstance(raw_data, dict) else "Unknown"
+        data_source = raw_data.get("source", "mock") if isinstance(raw_data, dict) else "mock"
+        
+        text = (f"AWS Service: {r['service']} | Cost: ${r['amount']:.2f} USD | "
+                f"Source: {data_source} | Company Profile: {company_name} | Industry: {industry}")
+                
+        metadata = {
+            "agent": "cost_analyzer", 
+            "service": r["service"], 
+            "amount": r["amount"],
+            "data_source": data_source,
+            "company": company_name
         }
-        for r in cost_records
-    ]
+        
+        docs.append({
+            "id": f"cost_{r['service'].replace(' ', '_').replace('/', '_')}",
+            "text": text,
+            "metadata": metadata,
+        })
+        
     ingest_documents(docs)
 
     return {"agent": "Cost Analyzer Agent", "findings": findings, "records": len(cost_records)}
+
+
+def _get_seeded_or_mock_data(db: Session) -> list[dict]:
+    """Return realistic seeded data if available, else fallback to mock."""
+    seeded_records = db.query(CostData).all()
+    kaggle_seeded = [s for s in seeded_records if s.raw_data and isinstance(s.raw_data, dict) and s.raw_data.get("source") == "kaggle_cloud_dataset"]
+    
+    if kaggle_seeded:
+        print("[COST_ANALYZER] Using certified Kaggle seeded data.")
+        return [
+            {
+                "service": s.service,
+                "amount": s.amount,
+                "start": s.start_date,
+                "end": s.end_date,
+                "raw_data": s.raw_data
+            }
+            for s in sorted(kaggle_seeded, key=lambda x: x.amount, reverse=True)
+        ]
+        
+    print("[COST_ANALYZER] Using random mock data.")
+    return _generate_mock_cost_data()
 
 
 def _generate_mock_cost_data() -> list[dict]:

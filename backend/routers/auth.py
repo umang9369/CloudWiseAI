@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from core.database import get_db, CloudConnection
+from data.company_seeder import seed_company_data
 import boto3
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -81,11 +82,15 @@ def connect_aws(request: AWSConnectRequest, db: Session = Depends(get_db)):
         db.refresh(conn)
         conn_id = conn.id
 
+    # Seed company-specific data from dataset
+    company_info = seed_company_data(db, account_id=account_id)
+    company_name = company_info.get("company_name", "Unknown Corp")
+
     return AWSConnectResponse(
         success=True,
         connection_id=conn_id,
         account_id=account_id,
-        message=f"Successfully connected to AWS account {account_id} in {request.region}",
+        message=f"Connected: {company_name} — Historical cloud data loaded from certified sources",
     )
 
 

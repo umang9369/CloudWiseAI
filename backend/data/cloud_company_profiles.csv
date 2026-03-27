@@ -1,0 +1,6 @@
+account_id,company_name,industry,employees,ec2_spend,rds_spend,s3_spend,lambda_spend,eks_spend,cloudfront_spend,total_monthly_spend
+demo-123456789012,Acme Corp,SaaS,500,2341.20,1120.50,489.30,145.00,672.00,230.00,4998.00
+aws-987654321,TechFlow Inc,Fintech,1200,8920.00,4500.00,1230.00,890.00,3200.00,670.00,19410.00
+aws-111222333,RetailEdge,E-commerce,3000,15600.00,6700.00,8900.00,2100.00,5400.00,3200.00,41900.00
+aws-444555666,DataStream,Analytics,250,3200.00,2100.00,4500.00,890.00,1200.00,340.00,12230.00
+aws-777888999,CloudNative Ltd,DevTools,80,890.00,340.00,230.00,1200.00,450.00,120.00,3230.00
