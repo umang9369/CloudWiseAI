@@ -35,6 +35,15 @@ def connect_aws(request: AWSConnectRequest, db: Session = Depends(get_db)):
     account_id = "demo-account"
     connection_successful = False
 
+    # Mapping of fake access keys to specific dataset company accounts
+    FAKE_COMPANY_MAP = {
+        "acme": "demo-123456789012",      # Acme Corp (SaaS)
+        "techflow": "aws-987654321",      # TechFlow Inc (Fintech)
+        "retailedge": "aws-111222333",    # RetailEdge (E-commerce)
+        "datastream": "aws-444555666",    # DataStream (Analytics)
+        "cloudnative": "aws-777888999"    # CloudNative Ltd (DevTools)
+    }
+
     # Try to validate with real AWS STS
     try:
         sts = boto3.client(
@@ -48,11 +57,18 @@ def connect_aws(request: AWSConnectRequest, db: Session = Depends(get_db)):
         connection_successful = True
         print(f"[AUTH] Real AWS connection verified. Account: {account_id}")
     except Exception as e:
-        # Any failure (invalid creds, network, etc.) → fallback to demo mode
-        # This allows users to test the app without real AWS credentials
+        # Any failure → check if it's a known fake credential mapped to a dataset company
         print(f"[AUTH] AWS STS validation failed ({type(e).__name__}): {e}")
-        print("[AUTH] Falling back to DEMO mode — app will use mock cloud data")
-        account_id = "demo-123456789012"
+        
+        # Look for the access key (case insensitive) in our fake map
+        ak_lower = request.access_key_id.lower()
+        if ak_lower in FAKE_COMPANY_MAP:
+            account_id = FAKE_COMPANY_MAP[ak_lower]
+            print(f"[AUTH] Magic credential detected! Mapping '{request.access_key_id}' to dataset account: {account_id}")
+        else:
+            print("[AUTH] Falling back to generic DEMO mode...")
+            account_id = "demo-123456789012"  # Defaults to Acme Corp
+            
         connection_successful = True
 
     if not connection_successful:
