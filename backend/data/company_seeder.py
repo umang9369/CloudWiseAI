@@ -1,5 +1,6 @@
 import pandas as pd
 from sqlalchemy.orm import Session
+from sqlalchemy import cast, String
 from core.database import CostData, CloudConnection
 from datetime import datetime, timedelta
 import os
@@ -52,7 +53,7 @@ def seed_company_data(db: Session, account_id: str, company_name: str = None) ->
     
     # Check if we already seeded for this account to avoid duplicates on reconnect
     existing_count = db.query(CostData).filter(
-        CostData.raw_data.cast(str).like(f"%{row['company_name']}%")
+        cast(CostData.raw_data, String).like(f"%{row['company_name']}%")
     ).count()
 
     if existing_count == 0:
