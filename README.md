@@ -39,7 +39,7 @@ The backend runs on port `8000`.
 1. Open a terminal in the `backend/` directory.
 2. Install dependencies: 
    ```bash
-   pip install fastapi uvicorn sqlalchemy python-dotenv groq chromadb boto3 botocore pydantic pydantic-settings python-multipart httpx psycopg2-binary
+   pip install fastapi uvicorn sqlalchemy python-dotenv groq chromadb boto3 botocore pydantic pydantic-settings python-multipart httpx psycopg2-binary pandas kaggle
    ```
 3. Set your Groq API key in `.env` inside the `backend` folder:
    ```env
