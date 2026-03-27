@@ -9,13 +9,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from database import init_db
-from router_auth import router as auth_router
-from router_dashboard import router as dashboard_router
-from router_anomalies import router as anomalies_router
-from router_recommendations import router as recommendations_router
-from router_query import router as query_router
-from router_agents import router as agents_router
+from core.database import init_db
+from routers.auth import router as auth_router
+from routers.dashboard import router as dashboard_router
+from routers.anomalies import router as anomalies_router
+from routers.recommendations import router as recommendations_router
+from routers.query import router as query_router
+from routers.agents import router as agents_router
 
 app = FastAPI(
     title="CloudWise AI Backend",
@@ -56,20 +56,20 @@ async def startup_event():
 
     # Initialize ChromaDB
     try:
-        from vectorstore import get_collection
+        from core.vectorstore import get_collection
         collection = get_collection()
         print(f"[STARTUP] ChromaDB ready. Documents: {collection.count()}")
     except Exception as e:
         print(f"[STARTUP] ChromaDB warning: {e}")
 
     # Auto-run agents on startup to populate DB with initial data
-    from database import SessionLocal, CostData
+    from core.database import SessionLocal, CostData
     db = SessionLocal()
     try:
         cost_count = db.query(CostData).count()
         if cost_count == 0:
             print("[STARTUP] No cloud data found. Running initial agent pipeline...")
-            from orchestrator import run_all_agents
+            from agents.orchestrator import run_all_agents
             run_all_agents(db)
             print("[STARTUP] Initial agent pipeline complete!")
         else:
