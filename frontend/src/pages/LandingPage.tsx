@@ -1,9 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-interface ConnectModalProps {
-    onClose: () => void;
+/* ─── parallax hook ─── */
+function useParallax(speed = 0.4) {
+    const [offset, setOffset] = useState(0);
+    useEffect(() => {
+        const onScroll = () => setOffset(window.scrollY * speed);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, [speed]);
+    return offset;
 }
+
+/* ─── intersection-observer hook ─── */
+function useReveal(threshold = 0.15) {
+    const ref = useRef<HTMLDivElement>(null);
+    const [visible, setVisible] = useState(false);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const obs = new IntersectionObserver(
+            ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } },
+            { threshold }
+        );
+        obs.observe(el);
+        return () => obs.disconnect();
+    }, [threshold]);
+    return { ref, visible };
+}
+
+/* ─── AWS Connect Modal ─── */
+interface ConnectModalProps { onClose: () => void; }
 
 function AWSConnectModal({ onClose }: ConnectModalProps) {
     const navigate = useNavigate();
@@ -23,27 +50,18 @@ function AWSConnectModal({ onClose }: ConnectModalProps) {
     const handleConnect = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!accessKey.trim() || !secretKey.trim()) return;
-
         setStep('connecting');
         setErrorMsg('');
-
         try {
             const res = await fetch('http://localhost:8000/api/auth/aws/connect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    access_key_id: accessKey.trim(),
-                    secret_access_key: secretKey.trim(),
-                    region,
-                }),
+                body: JSON.stringify({ access_key_id: accessKey.trim(), secret_access_key: secretKey.trim(), region }),
             });
-
             const data = await res.json();
-
             if (res.ok && data.success) {
                 setAccountId(data.account_id);
                 setStep('success');
-                // Run agents in background
                 fetch('http://localhost:8000/api/agents/run', { method: 'POST' }).catch(() => {});
                 setTimeout(() => navigate('/app/overview'), 2000);
             } else {
@@ -59,21 +77,13 @@ function AWSConnectModal({ onClose }: ConnectModalProps) {
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
             <div className="relative w-full max-w-lg mx-4 bg-[#171212] border border-[#372b2a] shadow-2xl">
-                {/* Modal Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-[#372b2a] bg-[#1f1616]">
                     <div className="flex items-center gap-3">
                         <span className="material-symbols-outlined text-[#bf3a2b] text-xl">cloud</span>
                         <span className="text-white text-sm font-bold tracking-wider uppercase">Connect AWS Cloud</span>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="text-[#7a7870] hover:text-white transition-colors text-xl leading-none cursor-pointer"
-                    >
-                        ✕
-                    </button>
+                    <button onClick={onClose} className="text-[#7a7870] hover:text-white transition-colors text-xl leading-none cursor-pointer">✕</button>
                 </div>
-
-                {/* Modal Body */}
                 <div className="p-6">
                     {step === 'form' && (
                         <>
@@ -81,74 +91,32 @@ function AWSConnectModal({ onClose }: ConnectModalProps) {
                                 Grant CloudWise AI read-only access to your AWS Cost Explorer and CloudWatch.
                                 Your credentials are encrypted and used only for cost analysis.
                             </p>
-
                             <form onSubmit={handleConnect} className="space-y-4">
                                 <div>
-                                    <label className="block text-[#7a7870] text-xs font-mono uppercase tracking-wider mb-2">
-                                        AWS Access Key ID
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={accessKey}
-                                        onChange={e => setAccessKey(e.target.value)}
-                                        placeholder="AKIAIOSFODNN7EXAMPLE"
-                                        className="w-full bg-[#0c0a0a] border border-[#372b2a] text-white px-4 py-3 text-sm font-mono focus:outline-none focus:border-[#bf3a2b] transition-colors"
-                                        required
-                                    />
+                                    <label className="block text-[#7a7870] text-xs font-mono uppercase tracking-wider mb-2">AWS Access Key ID</label>
+                                    <input type="text" value={accessKey} onChange={e => setAccessKey(e.target.value)} placeholder="AKIAIOSFODNN7EXAMPLE"
+                                        className="w-full bg-[#0c0a0a] border border-[#372b2a] text-white px-4 py-3 text-sm font-mono focus:outline-none focus:border-[#bf3a2b] transition-colors" required />
                                 </div>
-
                                 <div>
-                                    <label className="block text-[#7a7870] text-xs font-mono uppercase tracking-wider mb-2">
-                                        AWS Secret Access Key
-                                    </label>
-                                    <input
-                                        type="password"
-                                        value={secretKey}
-                                        onChange={e => setSecretKey(e.target.value)}
-                                        placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-                                        className="w-full bg-[#0c0a0a] border border-[#372b2a] text-white px-4 py-3 text-sm font-mono focus:outline-none focus:border-[#bf3a2b] transition-colors"
-                                        required
-                                    />
+                                    <label className="block text-[#7a7870] text-xs font-mono uppercase tracking-wider mb-2">AWS Secret Access Key</label>
+                                    <input type="password" value={secretKey} onChange={e => setSecretKey(e.target.value)} placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+                                        className="w-full bg-[#0c0a0a] border border-[#372b2a] text-white px-4 py-3 text-sm font-mono focus:outline-none focus:border-[#bf3a2b] transition-colors" required />
                                 </div>
-
                                 <div>
-                                    <label className="block text-[#7a7870] text-xs font-mono uppercase tracking-wider mb-2">
-                                        Primary Region
-                                    </label>
-                                    <select
-                                        value={region}
-                                        onChange={e => setRegion(e.target.value)}
-                                        className="w-full bg-[#0c0a0a] border border-[#372b2a] text-white px-4 py-3 text-sm font-mono focus:outline-none focus:border-[#bf3a2b] transition-colors cursor-pointer"
-                                    >
-                                        {regions.map(r => (
-                                            <option key={r} value={r}>{r}</option>
-                                        ))}
+                                    <label className="block text-[#7a7870] text-xs font-mono uppercase tracking-wider mb-2">Primary Region</label>
+                                    <select value={region} onChange={e => setRegion(e.target.value)}
+                                        className="w-full bg-[#0c0a0a] border border-[#372b2a] text-white px-4 py-3 text-sm font-mono focus:outline-none focus:border-[#bf3a2b] transition-colors cursor-pointer">
+                                        {regions.map(r => <option key={r} value={r}>{r}</option>)}
                                     </select>
                                 </div>
-
                                 <div className="pt-2 flex gap-3">
-                                    <button
-                                        type="submit"
-                                        className="flex-1 bg-[#bf3a2b] hover:bg-[#8a2a20] text-white py-3 text-sm font-bold tracking-wider uppercase transition-colors"
-                                    >
-                                        &gt; AUTHORIZE ACCESS
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={onClose}
-                                        className="px-6 border border-[#372b2a] text-[#7a7870] hover:text-white hover:border-white py-3 text-sm font-bold transition-colors"
-                                    >
-                                        CANCEL
-                                    </button>
+                                    <button type="submit" className="flex-1 bg-[#bf3a2b] hover:bg-[#8a2a20] text-white py-3 text-sm font-bold tracking-wider uppercase transition-colors">&gt; AUTHORIZE ACCESS</button>
+                                    <button type="button" onClick={onClose} className="px-6 border border-[#372b2a] text-[#7a7870] hover:text-white hover:border-white py-3 text-sm font-bold transition-colors">CANCEL</button>
                                 </div>
                             </form>
-
-                            <p className="text-[#3d3c39] text-[10px] font-mono mt-4 text-center">
-                                🔒 Credentials are stored encrypted. CloudWise uses read-only IAM permissions.
-                            </p>
+                            <p className="text-[#3d3c39] text-[10px] font-mono mt-4 text-center">🔒 Credentials are stored encrypted. CloudWise uses read-only IAM permissions.</p>
                         </>
                     )}
-
                     {step === 'connecting' && (
                         <div className="py-12 flex flex-col items-center gap-6">
                             <div className="w-16 h-16 border-2 border-[#bf3a2b] border-t-transparent rounded-full animate-spin" />
@@ -162,7 +130,6 @@ function AWSConnectModal({ onClose }: ConnectModalProps) {
                             </div>
                         </div>
                     )}
-
                     {step === 'success' && (
                         <div className="py-10 flex flex-col items-center gap-5">
                             <div className="w-16 h-16 bg-green-500/10 border border-green-500 flex items-center justify-center">
@@ -180,7 +147,6 @@ function AWSConnectModal({ onClose }: ConnectModalProps) {
                             </div>
                         </div>
                     )}
-
                     {step === 'error' && (
                         <div className="py-6 space-y-5">
                             <div className="flex items-start gap-3 bg-red-900/20 border border-red-700/40 p-4">
@@ -191,18 +157,8 @@ function AWSConnectModal({ onClose }: ConnectModalProps) {
                                 </div>
                             </div>
                             <div className="flex gap-3">
-                                <button
-                                    onClick={() => setStep('form')}
-                                    className="flex-1 bg-[#bf3a2b] hover:bg-[#8a2a20] text-white py-3 text-sm font-bold tracking-wider uppercase transition-colors"
-                                >
-                                    TRY AGAIN
-                                </button>
-                                <button
-                                    onClick={onClose}
-                                    className="px-6 border border-[#372b2a] text-[#7a7870] py-3 text-sm font-bold"
-                                >
-                                    CANCEL
-                                </button>
+                                <button onClick={() => setStep('form')} className="flex-1 bg-[#bf3a2b] hover:bg-[#8a2a20] text-white py-3 text-sm font-bold tracking-wider uppercase transition-colors">TRY AGAIN</button>
+                                <button onClick={onClose} className="px-6 border border-[#372b2a] text-[#7a7870] py-3 text-sm font-bold">CANCEL</button>
                             </div>
                         </div>
                     )}
@@ -212,31 +168,102 @@ function AWSConnectModal({ onClose }: ConnectModalProps) {
     );
 }
 
+/* ─── Animated Counter ─── */
+function Counter({ target, suffix = '' }: { target: number; suffix?: string }) {
+    const [count, setCount] = useState(0);
+    const { ref, visible } = useReveal(0.3);
+    useEffect(() => {
+        if (!visible) return;
+        let start = 0;
+        const step = target / 60;
+        const timer = setInterval(() => {
+            start += step;
+            if (start >= target) { setCount(target); clearInterval(timer); }
+            else setCount(Math.floor(start));
+        }, 16);
+        return () => clearInterval(timer);
+    }, [visible, target]);
+    return (
+        <span ref={ref as React.Ref<HTMLSpanElement>}>
+            {count.toLocaleString()}{suffix}
+        </span>
+    );
+}
+
+/* ─── Reveal wrapper ─── */
+function Reveal({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
+    const { ref, visible } = useReveal();
+    return (
+        <div
+            ref={ref}
+            className={className}
+            style={{
+                opacity: visible ? 1 : 0,
+                transform: visible ? 'translateY(0)' : 'translateY(40px)',
+                transition: `opacity 0.7s ease ${delay}ms, transform 0.7s ease ${delay}ms`,
+            }}
+        >
+            {children}
+        </div>
+    );
+}
+
+/* ─── Marquee ─── */
+const marqueeItems = [
+    'COST OPTIMIZATION', 'AWS', 'AZURE', 'GCP', 'ANOMALY DETECTION',
+    'MULTI-CLOUD', 'RAG ANALYSIS', 'GROQ LLM', 'CHROMADB', 'REAL-TIME AGENTS',
+    'RIGHTSIZING', 'RESERVED INSTANCES', 'SPOT OPTIMIZATION', 'CLOUD INTELLIGENCE',
+];
+
+function Marquee() {
+    const doubled = [...marqueeItems, ...marqueeItems];
+    return (
+        <div className="w-full overflow-hidden border-y border-[#372b2a] bg-[#0c0a0a] py-4 select-none">
+            <style>{`
+                @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+                .marquee-track { animation: marquee 30s linear infinite; display: flex; width: max-content; }
+                .marquee-track:hover { animation-play-state: paused; }
+            `}</style>
+            <div className="marquee-track">
+                {doubled.map((item, i) => (
+                    <span key={i} className="flex items-center gap-6 px-6 text-xs font-mono tracking-widest text-[#7a7870] whitespace-nowrap">
+                        <span className="text-[#bf3a2b]">◆</span>
+                        {item}
+                    </span>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+/* ─── Main Landing Page ─── */
 export default function LandingPage() {
     const [showModal, setShowModal] = useState(false);
-    
+    const heroParallax = useParallax(0.35);
+    const bgParallax = useParallax(0.15);
+
     return (
-        <div className="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-mono overflow-x-hidden min-h-screen flex flex-col">
+        <div className="bg-[#171212] text-white font-mono overflow-x-hidden min-h-screen flex flex-col">
             {showModal && <AWSConnectModal onClose={() => setShowModal(false)} />}
 
-            {/* Navbar */}
-            <header className="w-full border-b border-border-dark bg-background-dark/95 backdrop-blur z-50 sticky top-0">
+            {/* ── Sticky Nav ── */}
+            <header className="w-full border-b border-[#372b2a] bg-[#171212]/95 backdrop-blur z-50 sticky top-0">
                 <div className="max-w-[1440px] mx-auto px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-primary text-2xl">terminal</span>
+                        <span className="material-symbols-outlined text-[#bf3a2b] text-2xl">terminal</span>
                         <h2 className="text-white text-lg font-bold tracking-tight">CLOUDWISE//AI</h2>
                     </div>
                     <nav className="hidden md:flex items-center gap-8">
-                        <a className="text-text-muted hover:text-white text-sm font-medium transition-colors" href="#">// SOLUTIONS</a>
-                        <a className="text-text-muted hover:text-white text-sm font-medium transition-colors" href="#">// PRICING</a>
-                        <a className="text-text-muted hover:text-white text-sm font-medium transition-colors" href="#">// DOCS</a>
+                        <a className="text-[#7a7870] hover:text-white text-sm font-medium transition-colors" href="#">// SOLUTIONS</a>
+                        <a className="text-[#7a7870] hover:text-white text-sm font-medium transition-colors" href="#">// PRICING</a>
+                        <a className="text-[#7a7870] hover:text-white text-sm font-medium transition-colors" href="#">// DOCS</a>
                     </nav>
                     <div className="flex items-center gap-4">
                         <span className="hidden sm:flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
-                        <span className="hidden sm:block text-xs text-text-muted">SYSTEM ONLINE</span>
+                        <span className="hidden sm:block text-xs text-[#7a7870]">SYSTEM ONLINE</span>
                         <button
                             onClick={() => setShowModal(true)}
-                            className="flex items-center justify-center h-9 px-5 bg-primary hover:bg-primary-dark text-white text-xs font-bold tracking-wider transition-colors border border-transparent hover:border-white/20"
+                            className="flex items-center justify-center h-9 px-5 bg-[#bf3a2b] hover:bg-[#8a2a20] text-white text-xs font-bold tracking-wider transition-colors border border-transparent hover:border-white/20"
                         >
                             [ ACCESS_PLATFORM ]
                         </button>
@@ -244,37 +271,81 @@ export default function LandingPage() {
                 </div>
             </header>
 
-            {/* Main Content */}
             <main className="flex-grow flex flex-col">
-                {/* Hero Section */}
-                <section className="relative w-full border-b border-border-dark bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]">
-                    <div className="absolute inset-0 bg-background-dark/90 pointer-events-none"></div>
-                    <div className="relative max-w-[1440px] mx-auto px-6 py-16 lg:py-24 grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+
+                {/* ── Hero with Parallax ── */}
+                <section className="relative w-full min-h-screen flex items-center overflow-hidden border-b border-[#372b2a]">
+                    {/* Parallax background grid */}
+                    <div
+                        className="absolute inset-0 opacity-[0.04]"
+                        style={{
+                            backgroundImage: 'linear-gradient(#bf3a2b 1px, transparent 1px), linear-gradient(90deg, #bf3a2b 1px, transparent 1px)',
+                            backgroundSize: '60px 60px',
+                            transform: `translateY(${bgParallax}px)`,
+                            willChange: 'transform',
+                        }}
+                    />
+
+                    {/* Radial glow */}
+                    <div
+                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full pointer-events-none"
+                        style={{
+                            background: 'radial-gradient(circle, rgba(191,58,43,0.08) 0%, transparent 70%)',
+                            transform: `translate(-50%, calc(-50% + ${bgParallax * 0.5}px))`,
+                        }}
+                    />
+
+                    <div
+                        className="relative max-w-[1440px] mx-auto px-6 py-24 lg:py-32 grid lg:grid-cols-2 gap-12 lg:gap-20 items-center w-full"
+                        style={{ transform: `translateY(${heroParallax}px)`, willChange: 'transform' }}
+                    >
                         {/* Left: Typography */}
-                        <div className="flex flex-col gap-6 max-w-2xl">
-                            <div className="inline-flex items-center gap-2 text-primary text-xs font-bold tracking-widest uppercase mb-2">
-                                <span className="w-2 h-2 bg-primary"></span>
+                        <div className="flex flex-col gap-8 max-w-2xl">
+                            <div
+                                className="inline-flex items-center gap-2 text-[#bf3a2b] text-xs font-bold tracking-widest uppercase"
+                                style={{ opacity: 1 }}
+                            >
+                                <span className="w-2 h-2 bg-[#bf3a2b] animate-pulse"></span>
                                 Initializing Sequence v4.0.2
                             </div>
-                            <h1 className="text-white text-5xl sm:text-6xl lg:text-7xl font-bold leading-[0.9] tracking-tighter font-display">
+
+                            <h1 className="text-white text-5xl sm:text-6xl lg:text-7xl font-bold leading-[0.9] tracking-tighter">
                                 CLOUD COSTS,<br />
-                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-text-muted">DECODED.</span>
+                                <span
+                                    className="text-transparent bg-clip-text"
+                                    style={{ backgroundImage: 'linear-gradient(90deg, #ffffff 0%, #7a7870 100%)' }}
+                                >
+                                    DECODED.
+                                </span>
                             </h1>
-                            <p className="text-text-muted text-base sm:text-lg leading-relaxed max-w-lg border-l-2 border-primary pl-4">
+
+                            <p className="text-[#7a7870] text-base sm:text-lg leading-relaxed max-w-lg border-l-2 border-[#bf3a2b] pl-4">
                                 Production-ready agentic AI for total cloud cost optimization. Deploy autonomous agents to analyze, detect anomalies, and reduce spend without human intervention.
                             </p>
-                            <div className="flex flex-wrap gap-4 mt-4">
-                                {/* PRIMARY CTA — opens AWS modal */}
+
+                            <div className="flex flex-wrap gap-4">
                                 <button
                                     onClick={() => setShowModal(true)}
-                                    className="group relative flex items-center justify-center h-12 px-8 bg-white text-background-dark hover:bg-gray-200 text-sm font-bold tracking-wide transition-all cursor-pointer"
+                                    className="group relative flex items-center justify-center h-12 px-8 bg-white text-[#171212] hover:bg-gray-200 text-sm font-bold tracking-wide transition-all cursor-pointer overflow-hidden"
+                                    style={{ willChange: 'transform' }}
                                 >
-                                    <span className="mr-2">&gt;</span> INITIALIZE SYSTEM
+                                    <span
+                                        className="absolute inset-0 bg-[#bf3a2b]"
+                                        style={{
+                                            transform: 'translateX(-100%)',
+                                            transition: 'transform 0.3s ease',
+                                        }}
+                                        onMouseEnter={e => (e.currentTarget.style.transform = 'translateX(0)')}
+                                        onMouseLeave={e => (e.currentTarget.style.transform = 'translateX(-100%)')}
+                                    />
+                                    <span className="relative z-10 group-hover:text-white transition-colors duration-300">
+                                        <span className="mr-2">&gt;</span> INITIALIZE SYSTEM
+                                    </span>
                                     <div className="absolute inset-0 border border-white group-hover:translate-x-1 group-hover:translate-y-1 transition-transform pointer-events-none"></div>
                                 </button>
                                 <Link
                                     to="/app/overview"
-                                    className="group flex items-center justify-center h-12 px-8 bg-transparent border border-border-dark hover:border-white text-white text-sm font-bold tracking-wide transition-all"
+                                    className="group flex items-center justify-center h-12 px-8 bg-transparent border border-[#372b2a] hover:border-white text-white text-sm font-bold tracking-wide transition-all"
                                 >
                                     VIEW_DEMO.EXE
                                 </Link>
@@ -283,67 +354,48 @@ export default function LandingPage() {
 
                         {/* Right: Terminal Window */}
                         <div className="w-full relative group">
-                            <div className="absolute -top-3 -right-3 w-24 h-24 border-t-2 border-r-2 border-primary/30 z-0"></div>
-                            <div className="absolute -bottom-3 -left-3 w-24 h-24 border-b-2 border-l-2 border-primary/30 z-0"></div>
-                            <div className="relative z-10 bg-[#0c0a0a] border border-border-dark shadow-2xl overflow-hidden font-mono text-xs sm:text-sm">
-                                {/* Terminal Header */}
-                                <div className="flex items-center justify-between px-4 py-2 bg-[#1f1616] border-b border-border-dark">
+                            <div className="absolute -top-3 -right-3 w-24 h-24 border-t-2 border-r-2 border-[#bf3a2b]/30 z-0"></div>
+                            <div className="absolute -bottom-3 -left-3 w-24 h-24 border-b-2 border-l-2 border-[#bf3a2b]/30 z-0"></div>
+                            <div className="relative z-10 bg-[#0c0a0a] border border-[#372b2a] shadow-2xl overflow-hidden font-mono text-xs sm:text-sm">
+                                <div className="flex items-center justify-between px-4 py-2 bg-[#1f1616] border-b border-[#372b2a]">
                                     <div className="flex items-center gap-2">
                                         <div className="w-3 h-3 bg-[#ff5f57]"></div>
                                         <div className="w-3 h-3 bg-[#febc2e]"></div>
                                         <div className="w-3 h-3 bg-[#28c840]"></div>
                                     </div>
-                                    <div className="text-text-muted text-[10px] tracking-widest uppercase">agent_monitor_v1.sh</div>
+                                    <div className="text-[#7a7870] text-[10px] tracking-widest uppercase">agent_monitor_v1.sh</div>
                                     <div className="w-10"></div>
                                 </div>
-                                {/* Terminal Body */}
                                 <div className="p-6 h-[320px] overflow-y-auto flex flex-col gap-2 text-gray-300">
                                     <div className="flex gap-2">
                                         <span className="text-green-500">root@cloudwise:~#</span>
                                         <span className="text-white">./init_agents.sh --verbose</span>
                                     </div>
-                                    <div className="pl-4 text-text-muted">
+                                    <div className="pl-4 text-[#7a7870]">
                                         <div>[INFO] Establishing secure connection to AWS/GCP/AZURE...</div>
                                         <div>[INFO] Connection established (Latency: 12ms)</div>
                                         <div>[INFO] Loading agents: [COST_ANALYZER], [ANOMALY], [OPTIMIZER], [MULTI_CLOUD]</div>
                                         <div className="text-green-500">[SUCCESS] All 4 agents loaded. RAG pipeline ready.</div>
                                     </div>
-
                                     <div className="flex gap-2 mt-2">
                                         <span className="text-green-500">root@cloudwise:~#</span>
                                         <span className="text-white">tail -f /var/log/activity.log</span>
                                     </div>
                                     <div className="pl-4 grid gap-1 font-mono text-xs">
-                                        <div className="flex gap-3">
-                                            <span className="text-blue-400">10:42:01</span>
-                                            <span className="text-yellow-500">[WARN]</span>
-                                            <span>Unexpected spike detected in us-east-1 (RDS instance)</span>
-                                        </div>
-                                        <div className="flex gap-3">
-                                            <span className="text-blue-400">10:42:02</span>
-                                            <span className="text-primary">[ACTION]</span>
-                                            <span>Auto-scaling policy triggered. Reducing capacity by 20%.</span>
-                                        </div>
-                                        <div className="flex gap-3">
-                                            <span className="text-blue-400">10:42:05</span>
-                                            <span className="text-green-500">[SAVED]</span>
-                                            <span>Estimated savings: $420.50/month</span>
-                                        </div>
-                                        <div className="flex gap-3">
-                                            <span className="text-blue-400">10:42:15</span>
-                                            <span className="text-text-muted">[RAG]</span>
-                                            <span>ChromaDB query context retrieved. Groq analysis ready.</span>
-                                        </div>
-                                        <div className="flex gap-3">
-                                            <span className="text-blue-400">10:42:18</span>
-                                            <span className="text-primary">[ALERT]</span>
-                                            <span>3 Unused ELBs found. Marking for deletion.</span>
-                                        </div>
-                                        <div className="flex gap-3">
-                                            <span className="text-blue-400">10:42:22</span>
-                                            <span className="text-text-muted">[STATUS]</span>
-                                            <span>System optimal. Efficiency rating: 98.4%</span>
-                                        </div>
+                                        {[
+                                            { time: '10:42:01', tag: '[WARN]', color: 'text-yellow-500', msg: 'Unexpected spike detected in us-east-1 (RDS instance)' },
+                                            { time: '10:42:02', tag: '[ACTION]', color: 'text-[#bf3a2b]', msg: 'Auto-scaling policy triggered. Reducing capacity by 20%.' },
+                                            { time: '10:42:05', tag: '[SAVED]', color: 'text-green-500', msg: 'Estimated savings: $420.50/month' },
+                                            { time: '10:42:15', tag: '[RAG]', color: 'text-[#7a7870]', msg: 'ChromaDB query context retrieved. Groq analysis ready.' },
+                                            { time: '10:42:18', tag: '[ALERT]', color: 'text-[#bf3a2b]', msg: '3 Unused ELBs found. Marking for deletion.' },
+                                            { time: '10:42:22', tag: '[STATUS]', color: 'text-[#7a7870]', msg: 'System optimal. Efficiency rating: 98.4%' },
+                                        ].map((row, i) => (
+                                            <div key={i} className="flex gap-3">
+                                                <span className="text-blue-400">{row.time}</span>
+                                                <span className={row.color}>{row.tag}</span>
+                                                <span>{row.msg}</span>
+                                            </div>
+                                        ))}
                                         <div className="flex gap-3 mt-2">
                                             <span className="text-green-500">root@cloudwise:~#</span>
                                             <span className="animate-blink bg-white w-2 h-4 block"></span>
@@ -353,234 +405,254 @@ export default function LandingPage() {
                             </div>
                         </div>
                     </div>
-                </section>
 
-                {/* Stats Bar */}
-                <section className="border-b border-border-dark bg-surface-dark">
-                    <div className="max-w-[1440px] mx-auto grid grid-cols-2 md:grid-cols-4 divide-x divide-border-dark">
-                        <div className="p-6 md:p-8 flex flex-col gap-1 items-start group hover:bg-[#2a2221] transition-colors">
-                            <div className="text-text-muted text-xs font-bold tracking-wider uppercase mb-1">Resources Analyzed</div>
-                            <div className="text-white text-3xl font-display font-bold">2.4M<span className="text-primary">+</span></div>
-                            <div className="h-0.5 w-0 bg-primary group-hover:w-full transition-all duration-500 mt-2"></div>
-                        </div>
-                        <div className="p-6 md:p-8 flex flex-col gap-1 items-start group hover:bg-[#2a2221] transition-colors">
-                            <div className="text-text-muted text-xs font-bold tracking-wider uppercase mb-1">Avg Savings</div>
-                            <div className="text-white text-3xl font-display font-bold">38<span className="text-primary">%</span></div>
-                            <div className="h-0.5 w-0 bg-primary group-hover:w-full transition-all duration-500 mt-2"></div>
-                        </div>
-                        <div className="p-6 md:p-8 flex flex-col gap-1 items-start group hover:bg-[#2a2221] transition-colors">
-                            <div className="text-text-muted text-xs font-bold tracking-wider uppercase mb-1">Anomalies Caught</div>
-                            <div className="text-white text-3xl font-display font-bold">14,203</div>
-                            <div className="h-0.5 w-0 bg-primary group-hover:w-full transition-all duration-500 mt-2"></div>
-                        </div>
-                        <div className="p-6 md:p-8 flex flex-col gap-1 items-start group hover:bg-[#2a2221] transition-colors">
-                            <div className="text-text-muted text-xs font-bold tracking-wider uppercase mb-1">Active Agents</div>
-                            <div className="text-white text-3xl font-display font-bold">850<span className="text-primary">+</span></div>
-                            <div className="h-0.5 w-0 bg-primary group-hover:w-full transition-all duration-500 mt-2"></div>
-                        </div>
+                    {/* Scroll indicator */}
+                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-bounce">
+                        <span className="text-[#372b2a] text-[10px] tracking-widest font-mono">SCROLL</span>
+                        <div className="w-px h-8 bg-gradient-to-b from-[#372b2a] to-transparent"></div>
                     </div>
                 </section>
 
-                {/* Agents Section */}
-                <section className="max-w-[1440px] mx-auto px-6 py-20 w-full">
-                    <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6 border-b border-border-dark pb-6">
-                        <div className="flex flex-col gap-2">
-                            <div className="text-primary font-mono text-xs tracking-widest uppercase">// AUTONOMOUS AGENTS</div>
-                            <h2 className="text-white text-3xl md:text-4xl font-bold font-display uppercase max-w-xl">
-                                4-Agent AI System
-                            </h2>
-                        </div>
-                        <p className="text-text-muted text-sm max-w-sm text-right md:text-left">
-                            Each agent independently reasons with RAG context, then collaborates for final output.
-                        </p>
-                    </div>
+                {/* ── Marquee ── */}
+                <Marquee />
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[1px] bg-border-dark border border-border-dark">
+                {/* ── Stats Bar ── */}
+                <section className="border-b border-[#372b2a] bg-[#251e1d]">
+                    <div className="max-w-[1440px] mx-auto grid grid-cols-2 md:grid-cols-4 divide-x divide-[#372b2a]">
                         {[
-                            { icon: 'payments', name: 'Cost Analyzer', desc: 'Finds the most expensive services and tracks spend trends across all cloud resources.', color: 'text-primary' },
-                            { icon: 'warning', name: 'Anomaly Agent', desc: 'Detects unusual cost spikes within minutes using rolling baseline comparison.', color: 'text-yellow-500' },
-                            { icon: 'auto_fix_high', name: 'Optimization Agent', desc: 'Identifies idle resources, rightsizing opportunities, and cost-saving actions.', color: 'text-green-500' },
-                            { icon: 'public', name: 'Multi-Cloud Agent', desc: 'Compares costs across AWS, Azure, GCP and provides unified intelligence.', color: 'text-blue-400' },
-                        ].map((agent) => (
-                            <div key={agent.name} className="bg-background-dark p-8 flex flex-col gap-6 hover:bg-surface-dark transition-colors group">
-                                <div className={`w-12 h-12 bg-surface-dark border border-border-dark flex items-center justify-center text-white group-hover:border-current group-hover:${agent.color} transition-colors`}>
-                                    <span className={`material-symbols-outlined group-hover:${agent.color} transition-colors`}>{agent.icon}</span>
+                            { label: 'Resources Analyzed', value: 2400000, suffix: '+', display: '2.4M+' },
+                            { label: 'Avg Savings', value: 38, suffix: '%', display: '38%' },
+                            { label: 'Anomalies Caught', value: 14203, suffix: '', display: '14,203' },
+                            { label: 'Active Agents', value: 850, suffix: '+', display: '850+' },
+                        ].map((stat, i) => (
+                            <Reveal key={stat.label} delay={i * 100}>
+                                <div className="p-6 md:p-8 flex flex-col gap-1 items-start group hover:bg-[#2a2221] transition-colors cursor-default">
+                                    <div className="text-[#7a7870] text-xs font-bold tracking-wider uppercase mb-1">{stat.label}</div>
+                                    <div className="text-white text-3xl font-bold">
+                                        <Counter target={stat.value} />{stat.suffix}
+                                    </div>
+                                    <div className="h-0.5 w-0 bg-[#bf3a2b] group-hover:w-full transition-all duration-500 mt-2"></div>
                                 </div>
-                                <div className="flex flex-col gap-2">
-                                    <h3 className="text-white font-bold text-base uppercase tracking-tight">{agent.name}</h3>
-                                    <p className="text-text-muted text-sm leading-relaxed">{agent.desc}</p>
-                                </div>
-                                <button
-                                    onClick={() => setShowModal(true)}
-                                    className="mt-auto pt-4 text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2 group-hover:text-primary transition-colors cursor-pointer"
-                                >
-                                    Deploy Agent <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                                </button>
-                            </div>
+                            </Reveal>
                         ))}
                     </div>
                 </section>
 
-                {/* Features Grid */}
-                <section className="max-w-[1440px] mx-auto px-6 pb-20 w-full">
-                    <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6 border-b border-border-dark pb-6">
-                        <div className="flex flex-col gap-2">
-                            <div className="text-primary font-mono text-xs tracking-widest uppercase">// CAPABILITIES</div>
-                            <h2 className="text-white text-3xl md:text-4xl font-bold font-display uppercase max-w-xl">
-                                Autonomous Infrastructure Protection
-                            </h2>
-                        </div>
-                        <p className="text-text-muted text-sm max-w-sm text-right md:text-left">
-                            Industrial-grade autonomous agents operating 24/7 to secure your infrastructure efficiency.
-                        </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-[1px] bg-border-dark border border-border-dark">
-                        <div className="bg-background-dark p-8 flex flex-col gap-6 hover:bg-surface-dark transition-colors group">
-                            <div className="w-12 h-12 bg-surface-dark border border-border-dark flex items-center justify-center text-white group-hover:border-primary group-hover:text-primary transition-colors">
-                                <span className="material-symbols-outlined">memory</span>
-                            </div>
+                {/* ── Agents Section ── */}
+                <section className="max-w-[1440px] mx-auto px-6 py-24 w-full">
+                    <Reveal>
+                        <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6 border-b border-[#372b2a] pb-6">
                             <div className="flex flex-col gap-2">
-                                <h3 className="text-white font-bold text-lg uppercase tracking-tight">⚡ Auto Optimization</h3>
-                                <ul className="text-text-muted text-sm leading-relaxed space-y-1">
-                                    <li>→ Rightsizing instances</li>
-                                    <li>→ Removing idle resources</li>
-                                    <li>→ Smart storage tiering</li>
-                                </ul>
+                                <div className="text-[#bf3a2b] font-mono text-xs tracking-widest uppercase">// AUTONOMOUS AGENTS</div>
+                                <h2 className="text-white text-3xl md:text-4xl font-bold uppercase max-w-xl">4-Agent AI System</h2>
                             </div>
+                            <p className="text-[#7a7870] text-sm max-w-sm text-right md:text-left">
+                                Each agent independently reasons with RAG context, then collaborates for final output.
+                            </p>
                         </div>
+                    </Reveal>
 
-                        <div className="bg-background-dark p-8 flex flex-col gap-6 hover:bg-surface-dark transition-colors group">
-                            <div className="w-12 h-12 bg-surface-dark border border-border-dark flex items-center justify-center text-white group-hover:border-primary group-hover:text-primary transition-colors">
-                                <span className="material-symbols-outlined">warning</span>
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <h3 className="text-white font-bold text-lg uppercase tracking-tight">🚨 Real-Time Anomaly Detection</h3>
-                                <ul className="text-text-muted text-sm leading-relaxed space-y-1">
-                                    <li>→ Detects cost spikes within minutes</li>
-                                    <li>→ Prevents unexpected bills</li>
-                                    <li>→ Rolling 7-day baseline analysis</li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        <div className="bg-background-dark p-8 flex flex-col gap-6 hover:bg-surface-dark transition-colors group">
-                            <div className="w-12 h-12 bg-surface-dark border border-border-dark flex items-center justify-center text-white group-hover:border-primary group-hover:text-primary transition-colors">
-                                <span className="material-symbols-outlined">public</span>
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <h3 className="text-white font-bold text-lg uppercase tracking-tight">🌐 Multi-Cloud Intelligence</h3>
-                                <ul className="text-text-muted text-sm leading-relaxed space-y-1">
-                                    <li>→ Works across AWS, Azure, GCP</li>
-                                    <li>→ Provides unified insights</li>
-                                    <li>→ Cross-provider cost comparison</li>
-                                </ul>
-                            </div>
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[1px] bg-[#372b2a] border border-[#372b2a]">
+                        {[
+                            { icon: 'payments', name: 'Cost Analyzer', desc: 'Finds the most expensive services and tracks spend trends across all cloud resources.', color: 'text-[#bf3a2b]' },
+                            { icon: 'warning', name: 'Anomaly Agent', desc: 'Detects unusual cost spikes within minutes using rolling baseline comparison.', color: 'text-yellow-500' },
+                            { icon: 'auto_fix_high', name: 'Optimization Agent', desc: 'Identifies idle resources, rightsizing opportunities, and cost-saving actions.', color: 'text-green-500' },
+                            { icon: 'public', name: 'Multi-Cloud Agent', desc: 'Compares costs across AWS, Azure, GCP and provides unified intelligence.', color: 'text-blue-400' },
+                        ].map((agent, i) => (
+                            <Reveal key={agent.name} delay={i * 80}>
+                                <div className={`bg-[#171212] p-8 flex flex-col gap-6 hover:bg-[#251e1d] transition-all duration-300 group h-full`}>
+                                    <div className={`w-12 h-12 bg-[#251e1d] border border-[#372b2a] flex items-center justify-center text-white group-hover:border-current group-hover:${agent.color} transition-colors`}>
+                                        <span className={`material-symbols-outlined group-hover:${agent.color} transition-colors`}>{agent.icon}</span>
+                                    </div>
+                                    <div className="flex flex-col gap-2 flex-1">
+                                        <h3 className="text-white font-bold text-base uppercase tracking-tight">{agent.name}</h3>
+                                        <p className="text-[#7a7870] text-sm leading-relaxed">{agent.desc}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setShowModal(true)}
+                                        className="mt-auto pt-4 text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2 group-hover:text-[#bf3a2b] transition-colors cursor-pointer"
+                                    >
+                                        Deploy Agent <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                                    </button>
+                                </div>
+                            </Reveal>
+                        ))}
                     </div>
                 </section>
 
-                {/* Data Visualization Abstract Section */}
-                <section className="w-full py-16 bg-surface-dark border-y border-border-dark relative overflow-hidden">
-                    <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'radial-gradient(#bf3a2b 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+                {/* ── Horizontal scroll features ── */}
+                <section className="w-full py-24 bg-[#251e1d] border-y border-[#372b2a] relative overflow-hidden">
+                    {/* Parallax dot grid bg */}
+                    <div
+                        className="absolute inset-0 opacity-[0.03]"
+                        style={{
+                            backgroundImage: 'radial-gradient(#bf3a2b 1.5px, transparent 1.5px)',
+                            backgroundSize: '28px 28px',
+                        }}
+                    />
+                    <Reveal className="max-w-[1440px] mx-auto px-6 relative z-10">
+                        <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6 border-b border-[#372b2a] pb-6">
+                            <div className="flex flex-col gap-2">
+                                <div className="text-[#bf3a2b] font-mono text-xs tracking-widest uppercase">// CAPABILITIES</div>
+                                <h2 className="text-white text-3xl md:text-4xl font-bold uppercase max-w-xl">
+                                    Autonomous Infrastructure Protection
+                                </h2>
+                            </div>
+                            <p className="text-[#7a7870] text-sm max-w-sm text-right md:text-left">
+                                Industrial-grade autonomous agents operating 24/7 to secure your infrastructure efficiency.
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-[1px] bg-[#372b2a] border border-[#372b2a]">
+                            {[
+                                {
+                                    icon: 'memory', title: '⚡ Auto Optimization',
+                                    items: ['→ Rightsizing instances', '→ Removing idle resources', '→ Smart storage tiering']
+                                },
+                                {
+                                    icon: 'warning', title: '🚨 Real-Time Anomaly Detection',
+                                    items: ['→ Detects cost spikes within minutes', '→ Prevents unexpected bills', '→ Rolling 7-day baseline analysis']
+                                },
+                                {
+                                    icon: 'public', title: '🌐 Multi-Cloud Intelligence',
+                                    items: ['→ Works across AWS, Azure, GCP', '→ Provides unified insights', '→ Cross-provider cost comparison']
+                                },
+                            ].map((cap, i) => (
+                                <Reveal key={cap.title} delay={i * 100}>
+                                    <div className="bg-[#171212] p-8 flex flex-col gap-6 hover:bg-[#251e1d] transition-colors group h-full">
+                                        <div className="w-12 h-12 bg-[#251e1d] border border-[#372b2a] flex items-center justify-center text-white group-hover:border-[#bf3a2b] group-hover:text-[#bf3a2b] transition-colors">
+                                            <span className="material-symbols-outlined">{cap.icon}</span>
+                                        </div>
+                                        <div className="flex flex-col gap-2">
+                                            <h3 className="text-white font-bold text-lg uppercase tracking-tight">{cap.title}</h3>
+                                            <ul className="text-[#7a7870] text-sm leading-relaxed space-y-1">
+                                                {cap.items.map(it => <li key={it}>{it}</li>)}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </Reveal>
+                            ))}
+                        </div>
+                    </Reveal>
+                </section>
+
+                {/* ── RAG Visualization Section with Parallax ── */}
+                <section className="w-full py-24 bg-[#171212] border-b border-[#372b2a] relative overflow-hidden">
+                    <div
+                        className="absolute inset-0 opacity-[0.025]"
+                        style={{
+                            backgroundImage: 'linear-gradient(#bf3a2b 1px, transparent 1px)',
+                            backgroundSize: '1px 40px',
+                        }}
+                    />
                     <div className="max-w-[1440px] mx-auto px-6 relative z-10">
                         <div className="grid md:grid-cols-2 gap-12 items-center">
-                            <div className="order-2 md:order-1 relative">
-                                <div className="w-full aspect-video bg-background-dark border border-border-dark p-1 relative">
-                                    <div className="absolute inset-0 grid grid-cols-6 grid-rows-4 divide-x divide-y divide-border-dark/30 opacity-50"></div>
-                                    <svg className="absolute inset-0 w-full h-full text-primary" preserveAspectRatio="none">
-                                        <polyline fill="none" points="0,200 50,180 100,190 150,140 200,150 250,100 300,80 350,90 400,40 500,20" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke"></polyline>
+                            <Reveal className="order-2 md:order-1 relative">
+                                <div className="w-full aspect-video bg-[#0c0a0a] border border-[#372b2a] p-1 relative overflow-hidden">
+                                    <div className="absolute inset-0 grid grid-cols-6 grid-rows-4 divide-x divide-y divide-[#372b2a]/30 opacity-50"></div>
+                                    <svg className="absolute inset-0 w-full h-full text-[#bf3a2b]" preserveAspectRatio="none">
+                                        <polyline fill="none" points="0,200 50,180 100,190 150,140 200,150 250,100 300,80 350,90 400,40 500,20" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" />
                                         <defs>
                                             <linearGradient id="grad1" x1="0%" x2="0%" y1="0%" y2="100%">
-                                                <stop offset="0%" style={{ stopColor: 'rgb(191, 58, 43)', stopOpacity: 0.2 }}></stop>
-                                                <stop offset="100%" style={{ stopColor: 'rgb(191, 58, 43)', stopOpacity: 0 }}></stop>
+                                                <stop offset="0%" style={{ stopColor: 'rgb(191, 58, 43)', stopOpacity: 0.2 }} />
+                                                <stop offset="100%" style={{ stopColor: 'rgb(191, 58, 43)', stopOpacity: 0 }} />
                                             </linearGradient>
                                         </defs>
-                                        <polygon fill="url(#grad1)" points="0,200 50,180 100,190 150,140 200,150 250,100 300,80 350,90 400,40 500,20 500,300 0,300"></polygon>
+                                        <polygon fill="url(#grad1)" points="0,200 50,180 100,190 150,140 200,150 250,100 300,80 350,90 400,40 500,20 500,300 0,300" />
                                     </svg>
-                                    <div className="absolute top-[20%] right-[10%] bg-background-dark border border-primary px-3 py-1 text-[10px] text-primary">
-                                        OPTIMIZED
-                                    </div>
+                                    <div className="absolute top-[20%] right-[10%] bg-[#0c0a0a] border border-[#bf3a2b] px-3 py-1 text-[10px] text-[#bf3a2b]">OPTIMIZED</div>
                                 </div>
-                            </div>
-                            <div className="order-1 md:order-2 flex flex-col gap-6">
-                                <div className="text-primary font-mono text-xs tracking-widest uppercase">// RAG-POWERED ANALYSIS</div>
-                                <h2 className="text-white text-3xl md:text-4xl font-bold font-display uppercase">
+                            </Reveal>
+                            <Reveal delay={150} className="order-1 md:order-2 flex flex-col gap-6">
+                                <div className="text-[#bf3a2b] font-mono text-xs tracking-widest uppercase">// RAG-POWERED ANALYSIS</div>
+                                <h2 className="text-white text-3xl md:text-4xl font-bold uppercase">
                                     Visualise Spend.<br />Eliminate Waste.
                                 </h2>
-                                <ul className="space-y-4 font-mono text-sm text-text-muted">
+                                <ul className="space-y-4 font-mono text-sm text-[#7a7870]">
                                     <li className="flex items-start gap-3">
-                                        <span className="text-primary mt-1 material-symbols-outlined text-sm">check_box_outline_blank</span>
+                                        <span className="text-[#bf3a2b] mt-1 material-symbols-outlined text-sm">check_box_outline_blank</span>
                                         <span>ChromaDB vector store ingests all cloud cost data for semantic retrieval.</span>
                                     </li>
                                     <li className="flex items-start gap-3">
-                                        <span className="text-primary mt-1 material-symbols-outlined text-sm">check_box_outline_blank</span>
+                                        <span className="text-[#bf3a2b] mt-1 material-symbols-outlined text-sm">check_box_outline_blank</span>
                                         <span>Groq (llama-3.3-70b) reasons over your cloud data for instant analysis.</span>
                                     </li>
                                     <li className="flex items-start gap-3">
-                                        <span className="text-primary mt-1 material-symbols-outlined text-sm">check_box_outline_blank</span>
+                                        <span className="text-[#bf3a2b] mt-1 material-symbols-outlined text-sm">check_box_outline_blank</span>
                                         <span>Customizable dashboards for engineering &amp; finance teams.</span>
                                     </li>
                                 </ul>
                                 <div className="mt-4">
                                     <button
                                         onClick={() => setShowModal(true)}
-                                        className="inline-flex items-center text-white border-b border-primary pb-1 hover:text-primary transition-colors text-sm font-bold uppercase tracking-wide cursor-pointer"
+                                        className="inline-flex items-center text-white border-b border-[#bf3a2b] pb-1 hover:text-[#bf3a2b] transition-colors text-sm font-bold uppercase tracking-wide cursor-pointer"
                                     >
                                         Connect_Cloud <span className="ml-2 material-symbols-outlined text-sm">arrow_right_alt</span>
                                     </button>
                                 </div>
-                            </div>
+                            </Reveal>
                         </div>
                     </div>
                 </section>
+
+                {/* ── CTA Banner ── */}
+                <section className="w-full py-24 bg-[#251e1d] border-b border-[#372b2a]">
+                    <Reveal className="max-w-[1440px] mx-auto px-6 text-center flex flex-col items-center gap-8">
+                        <div className="text-[#bf3a2b] font-mono text-xs tracking-widest uppercase">// GET STARTED</div>
+                        <h2 className="text-white text-4xl md:text-5xl font-bold uppercase max-w-3xl leading-tight">
+                            Stop overpaying for cloud.<br />
+                            <span className="text-[#7a7870]">Deploy intelligence today.</span>
+                        </h2>
+                        <div className="flex flex-wrap gap-4 justify-center">
+                            <button
+                                onClick={() => setShowModal(true)}
+                                className="h-14 px-10 bg-[#bf3a2b] hover:bg-[#8a2a20] text-white text-sm font-bold tracking-wider uppercase transition-all hover:-translate-y-0.5"
+                            >
+                                &gt; INITIALIZE SYSTEM
+                            </button>
+                            <Link to="/app/overview"
+                                className="h-14 px-10 border border-[#372b2a] hover:border-white text-white text-sm font-bold tracking-wider uppercase transition-all hover:-translate-y-0.5 flex items-center"
+                            >
+                                VIEW LIVE DEMO
+                            </Link>
+                        </div>
+                    </Reveal>
+                </section>
             </main>
 
-            {/* Footer */}
-            <footer className="bg-background-dark border-t border-border-dark pt-16 pb-8">
+            {/* ── Footer ── */}
+            <footer className="bg-[#171212] border-t border-[#372b2a] pt-16 pb-8">
                 <div className="max-w-[1440px] mx-auto px-6">
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-16">
                         <div className="col-span-2 lg:col-span-2 flex flex-col gap-4">
                             <div className="flex items-center gap-3 mb-2">
-                                <span className="material-symbols-outlined text-primary text-2xl">terminal</span>
+                                <span className="material-symbols-outlined text-[#bf3a2b] text-2xl">terminal</span>
                                 <h2 className="text-white text-lg font-bold tracking-tight">CLOUDWISE//AI</h2>
                             </div>
-                            <p className="text-text-muted text-sm max-w-xs leading-relaxed">
+                            <p className="text-[#7a7870] text-sm max-w-xs leading-relaxed">
                                 The industrial standard for autonomous cloud cost optimization. Built for scale. Engineered for efficiency.
                             </p>
                         </div>
-                        <div className="flex flex-col gap-4">
-                            <h4 className="text-white font-bold text-sm uppercase tracking-wider">Platform</h4>
-                            <a className="text-text-muted hover:text-primary transition-colors text-sm" href="#">Agents</a>
-                            <a className="text-text-muted hover:text-primary transition-colors text-sm" href="#">Integrations</a>
-                            <a className="text-text-muted hover:text-primary transition-colors text-sm" href="#">Security</a>
-                            <a className="text-text-muted hover:text-primary transition-colors text-sm" href="#">Changelog</a>
-                        </div>
-                        <div className="flex flex-col gap-4">
-                            <h4 className="text-white font-bold text-sm uppercase tracking-wider">Resources</h4>
-                            <a className="text-text-muted hover:text-primary transition-colors text-sm" href="#">Documentation</a>
-                            <a className="text-text-muted hover:text-primary transition-colors text-sm" href="#">API Reference</a>
-                            <a className="text-text-muted hover:text-primary transition-colors text-sm" href="#">Community</a>
-                            <a className="text-text-muted hover:text-primary transition-colors text-sm" href="#">Case Studies</a>
-                        </div>
-                        <div className="flex flex-col gap-4">
-                            <h4 className="text-white font-bold text-sm uppercase tracking-wider">Company</h4>
-                            <a className="text-text-muted hover:text-primary transition-colors text-sm" href="#">About</a>
-                            <a className="text-text-muted hover:text-primary transition-colors text-sm" href="#">Careers</a>
-                            <a className="text-text-muted hover:text-primary transition-colors text-sm" href="#">Legal</a>
-                            <a className="text-text-muted hover:text-primary transition-colors text-sm" href="#">Contact</a>
-                        </div>
+                        {[
+                            { title: 'Platform', links: ['Agents', 'Integrations', 'Security', 'Changelog'] },
+                            { title: 'Resources', links: ['Documentation', 'API Reference', 'Community', 'Case Studies'] },
+                            { title: 'Company', links: ['About', 'Careers', 'Legal', 'Contact'] },
+                        ].map(col => (
+                            <div key={col.title} className="flex flex-col gap-4">
+                                <h4 className="text-white font-bold text-sm uppercase tracking-wider">{col.title}</h4>
+                                {col.links.map(l => (
+                                    <a key={l} className="text-[#7a7870] hover:text-[#bf3a2b] transition-colors text-sm" href="#">{l}</a>
+                                ))}
+                            </div>
+                        ))}
                     </div>
-                    <div className="border-t border-border-dark pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-                        <p className="text-text-muted text-xs">
-                            © 2024 CLOUDWISE AI SYSTEMS. ALL RIGHTS RESERVED.
-                        </p>
+                    <div className="border-t border-[#372b2a] pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <p className="text-[#7a7870] text-xs">© 2024 CLOUDWISE AI SYSTEMS. ALL RIGHTS RESERVED.</p>
                         <div className="flex gap-6">
                             <div className="flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                                <span className="text-text-muted text-xs">All Systems Operational</span>
+                                <span className="text-[#7a7870] text-xs">All Systems Operational</span>
                             </div>
-                            <span className="text-text-muted text-xs">v4.2.0-fastapi</span>
+                            <span className="text-[#7a7870] text-xs">v4.2.0-fastapi</span>
                         </div>
                     </div>
                 </div>
